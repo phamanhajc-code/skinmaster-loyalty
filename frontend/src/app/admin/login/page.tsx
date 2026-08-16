@@ -1,12 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch, ApiError } from '@/lib/api';
 import { adminAuth, AdminUser } from '@/lib/auth-storage';
 
 export default function AdminLoginPage() {
   const router = useRouter();
+
+  useEffect(() => {
+    if (adminAuth.getToken()) {
+      router.replace('/admin');
+    }
+  }, [router]);
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);

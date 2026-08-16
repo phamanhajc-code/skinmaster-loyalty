@@ -1,12 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch, ApiError } from '@/lib/api';
 import { customerAuth } from '@/lib/auth-storage';
 
 export default function CustomerLoginPage() {
   const router = useRouter();
+
+  useEffect(() => {
+    if (customerAuth.getToken()) {
+      router.replace('/home');
+    }
+  }, [router]);
+
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
