@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+
+# Env files (never commit secrets)
+.env
+.env.local
+.env.*.local
+
+# Next.js
+frontend/.next/
+frontend/out/
+frontend/next-env.d.ts
+
+# NestJS build output
+backend/dist/
+
+# Prisma generated client
+backend/generated/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Agent/skill scaffolding noise (not app code)
+.claude/
+.agents/
+.windsurf/
+skills-lock.json
+
+# OS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/

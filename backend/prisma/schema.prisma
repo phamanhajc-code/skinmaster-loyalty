@@ -1,0 +1,223 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Admin / staff accounts — 2-tier RBAC per spec 7.1
+//   super_admin: full access, can edit PolicyConfig
+//   operator:    members / referrals / vouchers only, cannot edit policy
+// ---------------------------------------------------------------------------
+enum AdminRole {
+  super_admin
+  operator
+}
+
+model AdminUser {
+  id           String    @id @default(uuid())
+  fullName     String
+  email        String    @unique
+  passwordHash String
+  role         AdminRole @default(operator)
+  createdAt    DateTime  @default(now())
+
+  transactions Transaction[]
+
+  @@map("admin_users")
+}
+
+// ---------------------------------------------------------------------------
+// Customer
+// ---------------------------------------------------------------------------
+model Customer {
+  id                    String     @id @default(uuid())
+  fullName              String
+  phone                 String     @unique
+  email                 String?
+  referralCode          String     @unique
+  referredByCustomer    Customer?  @relation("ReferredBy", fields: [referredByCustomerId], references: [id])
+  referredByCustomerId  String?
+  referredCustomers     Customer[] @relation("ReferredBy")
+  createdAt             DateTime   @default(now())
+
+  cards             MembershipCard[]
+  vouchers          Voucher[]
+  otps              CustomerOtp[]
+  referralsMade     Referral[]       @relation("ReferralsMade")
+  referralsReceived Referral[]       @relation("ReferralsReceived")
+
+  @@map("customers")
+}
+
+// One-time-password login codes for the member portal
+model CustomerOtp {
+  id         String    @id @default(uuid())
+  customer   Customer? @relation(fields: [customerId], references: [id])
+  customerId String?
+  phone      String
+  codeHash   String
+  expiresAt  DateTime
+  consumed   Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+
+  @@index([phone])
+  @@map("customer_otps")
+}
+
+// ---------------------------------------------------------------------------
+// MembershipCard
+// ---------------------------------------------------------------------------
+enum CardStatus {
+  active
+  used_up
+  locked
+}
+
+model MembershipCard {
+  id                  String     @id @default(uuid())
+  customer            Customer   @relation(fields: [customerId], references: [id])
+  customerId          String
+  cardCode            String     @unique
+  tierCode            String
+  tierPolicy          TierPolicy @relation(fields: [tierCode], references: [code])
+  initialValue        Decimal    @db.Decimal(14, 2)
+  bonusValue          Decimal    @db.Decimal(14, 2)
+  balance             Decimal    @db.Decimal(14, 2)
+  bundledServiceName  String
+  bundledServiceValue Decimal    @db.Decimal(14, 2)
+  bundledServiceUsed  Boolean    @default(false)
+  activatedAt         DateTime   @default(now())
+  status              CardStatus @default(active)
+
+  transactions Transaction[]
+
+  @@map("membership_cards")
+}
+
+// ---------------------------------------------------------------------------
+// Transaction
+// ---------------------------------------------------------------------------
+enum TransactionType {
+  top_up
+  usage
+  bonus_credit
+}
+
+model Transaction {
+  id          String          @id @default(uuid())
+  card        MembershipCard  @relation(fields: [cardId], references: [id])
+  cardId      String
+  type        TransactionType
+  amount      Decimal         @db.Decimal(14, 2)
+  serviceName String?
+  staff       AdminUser?      @relation(fields: [staffId], references: [id])
+  staffId     String?
+  createdAt   DateTime        @default(now())
+
+  @@map("transactions")
+}
+
+// ---------------------------------------------------------------------------
+// Referral
+// ---------------------------------------------------------------------------
+enum ReferralType {
+  card_purchase
+  online_purchase
+}
+
+enum ReferralStatus {
+  pending
+  rewarded
+  cancelled
+}
+
+model Referral {
+  id                 String         @id @default(uuid())
+  displayCode        String         @unique
+  referrer           Customer       @relation("ReferralsMade", fields: [referrerCustomerId], references: [id])
+  referrerCustomerId String
+  referred           Customer       @relation("ReferralsReceived", fields: [referredCustomerId], references: [id])
+  referredCustomerId String
+  referralType       ReferralType
+  triggerAmount      Decimal        @db.Decimal(14, 2)
+  rewardForReferrer  String?
+  rewardForReferred  String?
+  status             ReferralStatus @default(pending)
+  createdAt          DateTime       @default(now())
+  rewardedAt         DateTime?
+
+  vouchers Voucher[]
+
+  @@map("referrals")
+}
+
+// ---------------------------------------------------------------------------
+// Voucher
+// ---------------------------------------------------------------------------
+enum VoucherSourceType {
+  referral
+  tier_bonus
+  manual
+}
+
+enum VoucherStatus {
+  active
+  used
+  expired
+}
+
+model Voucher {
+  id          String            @id @default(uuid())
+  voucherCode String            @unique
+  customer    Customer          @relation(fields: [customerId], references: [id])
+  customerId  String
+  value       Decimal           @db.Decimal(14, 2)
+  sourceType  VoucherSourceType
+  referral    Referral?         @relation(fields: [referralId], references: [id])
+  referralId  String?
+  sourceLabel String
+  issuedAt    DateTime          @default(now())
+  expiresAt   DateTime
+  status      VoucherStatus     @default(active)
+  usedAt      DateTime?
+
+  @@map("vouchers")
+}
+
+// ---------------------------------------------------------------------------
+// PolicyConfig — TierPolicy (3.1) + ReferralPolicyTier (3.2 / 3.3)
+// Admin-editable without code changes (spec 2.6 / 4.5)
+// ---------------------------------------------------------------------------
+model TierPolicy {
+  code                String  @id
+  displayName         String
+  minTopupValue       Decimal @db.Decimal(14, 2)
+  bonusValue          Decimal @db.Decimal(14, 2)
+  bundledServiceName  String
+  bundledServiceValue Decimal @db.Decimal(14, 2)
+  sortOrder           Int     @default(0)
+  active              Boolean @default(true)
+
+  cards MembershipCard[]
+
+  @@map("tier_policies")
+}
+
+model ReferralPolicyTier {
+  id                     String       @id @default(uuid())
+  referralType           ReferralType
+  label                  String
+  minTriggerAmount       Decimal      @db.Decimal(14, 2)
+  rewardForReferred      String
+  rewardForReferrer      String
+  referrerVoucherAmounts Int[]        @default([])
+  voucherValidityDays    Int          @default(30)
+  sortOrder              Int          @default(0)
+  active                 Boolean      @default(true)
+
+  @@map("referral_policy_tiers")
+}
