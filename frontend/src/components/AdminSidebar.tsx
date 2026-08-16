@@ -46,6 +46,9 @@ export default function AdminSidebar({ user }: { user: AdminUser }) {
       <div className="sidebar-footer">
         <strong>{user.fullName}</strong>
         {user.email}
+        <div style={{ marginTop: 2 }}>
+          {user.role === 'super_admin' ? 'Quản trị toàn quyền' : user.department ? `Vận hành — ${user.department}` : 'Nhân viên vận hành'}
+        </div>
         <div style={{ marginTop: 10 }}>
           <button className="sm-link-btn" onClick={logout}>
             Đăng xuất

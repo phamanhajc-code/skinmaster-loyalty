@@ -18,20 +18,31 @@ async function seedAdmins() {
     },
   });
 
-  await prisma.adminUser.upsert({
-    where: { email: 'cskh@skinmaster.edu.vn' },
-    update: {},
-    create: {
-      fullName: 'Nhân viên CSKH',
-      email: 'cskh@skinmaster.edu.vn',
-      passwordHash: operatorPassword,
-      role: AdminRole.operator,
-    },
-  });
+  const operatorAccounts = [
+    { fullName: 'Nhân viên Văn phòng', email: 'vanphong@skinmaster.edu.vn', department: 'Văn phòng' },
+    { fullName: 'Nhân viên Sale', email: 'sale@skinmaster.edu.vn', department: 'Sale' },
+    { fullName: 'Nhân viên CSKH', email: 'cskh@skinmaster.edu.vn', department: 'CSKH' },
+  ];
+
+  for (const acc of operatorAccounts) {
+    await prisma.adminUser.upsert({
+      where: { email: acc.email },
+      update: { department: acc.department },
+      create: {
+        fullName: acc.fullName,
+        email: acc.email,
+        passwordHash: operatorPassword,
+        role: AdminRole.operator,
+        department: acc.department,
+      },
+    });
+  }
 
   console.log('✔ Seeded admin accounts:');
-  console.log('   super_admin  admin@skinmaster.edu.vn / Admin@123');
-  console.log('   operator     cskh@skinmaster.edu.vn / Operator@123');
+  console.log('   super_admin       admin@skinmaster.edu.vn / Admin@123');
+  operatorAccounts.forEach((acc) => {
+    console.log(`   operator (${acc.department.padEnd(9)}) ${acc.email} / Operator@123`);
+  });
 }
 
 async function seedTierPolicies() {
@@ -367,8 +378,10 @@ async function main() {
   const referred = await seedReferredCustomers(referrers);
   await seedReferralsAndVouchers(referrers, referred);
   console.log('\n✅ Seed hoàn tất. Đăng nhập demo:');
-  console.log('   Admin:  admin@skinmaster.edu.vn / Admin@123 (super_admin)');
-  console.log('   Admin:  cskh@skinmaster.edu.vn / Operator@123 (operator)');
+  console.log('   Admin (Quản trị toàn quyền): admin@skinmaster.edu.vn / Admin@123');
+  console.log('   Admin (Văn phòng):           vanphong@skinmaster.edu.vn / Operator@123');
+  console.log('   Admin (Sale):                sale@skinmaster.edu.vn / Operator@123');
+  console.log('   Admin (CSKH):                cskh@skinmaster.edu.vn / Operator@123');
   console.log('   User:   SĐT 0912345678 — OTP sẽ in ra log server (OTP_PROVIDER=console)');
 }
 

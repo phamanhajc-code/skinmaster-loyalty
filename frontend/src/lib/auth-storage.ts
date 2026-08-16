@@ -7,6 +7,7 @@ export interface AdminUser {
   fullName: string;
   email: string;
   role: 'super_admin' | 'operator';
+  department: string | null;
 }
 
 export const adminAuth = {

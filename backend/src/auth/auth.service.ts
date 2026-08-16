@@ -41,7 +41,13 @@ export class AuthService {
 
     return {
       accessToken,
-      admin: { id: admin.id, fullName: admin.fullName, email: admin.email, role: admin.role },
+      admin: {
+        id: admin.id,
+        fullName: admin.fullName,
+        email: admin.email,
+        role: admin.role,
+        department: admin.department,
+      },
     };
   }
 

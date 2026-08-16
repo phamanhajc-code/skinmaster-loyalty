@@ -23,6 +23,9 @@ model AdminUser {
   email        String    @unique
   passwordHash String
   role         AdminRole @default(operator)
+  // Free-text department label for display only (Văn phòng / Sale / CSKH...).
+  // Does not affect access — permissions are governed solely by `role`.
+  department   String?
   createdAt    DateTime  @default(now())
 
   transactions Transaction[]
